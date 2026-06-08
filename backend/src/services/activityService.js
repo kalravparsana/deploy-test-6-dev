@@ -1,19 +1,31 @@
-import { pool } from '../db/pool.js';
+import { QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { getDocClient, getTableName } from '../shared/dynamodb.js';
 
 export async function getActivities(search = '') {
-  let query = `
-    SELECT id, user_name AS user, action, timestamp, status
-    FROM activities
-  `;
-  const params = [];
+  const result = await getDocClient().send(
+    new QueryCommand({
+      TableName: getTableName(),
+      KeyConditionExpression: 'pk = :pk',
+      ExpressionAttributeValues: { ':pk': 'ACTIVITY' },
+    })
+  );
 
-  if (search.trim()) {
-    query += ` WHERE user_name ILIKE $1 OR action ILIKE $1`;
-    params.push(`%${search.trim()}%`);
+  let items = (result.Items || []).map(({ id, user, action, timestamp, status }) => ({
+    id,
+    user,
+    action,
+    timestamp,
+    status,
+  }));
+
+  const term = search.trim().toLowerCase();
+  if (term) {
+    items = items.filter(
+      (item) =>
+        item.user.toLowerCase().includes(term) ||
+        item.action.toLowerCase().includes(term)
+    );
   }
 
-  query += ' ORDER BY timestamp DESC';
-
-  const result = await pool.query(query, params);
-  return result.rows;
+  return items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 }

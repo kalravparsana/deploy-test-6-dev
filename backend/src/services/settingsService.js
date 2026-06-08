@@ -1,66 +1,91 @@
-import { pool } from '../db/pool.js';
+import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { getDocClient, getTableName } from '../shared/dynamodb.js';
 
-export async function getProfile() {
-  const result = await pool.query(
-    'SELECT name, email, role, avatar FROM user_profile ORDER BY id LIMIT 1'
+async function getSettingsItem(sk) {
+  const result = await getDocClient().send(
+    new GetCommand({
+      TableName: getTableName(),
+      Key: { pk: 'SETTINGS', sk },
+    })
   );
-  if (result.rows.length === 0) {
-    const err = new Error('Profile not found');
+
+  if (!result.Item) {
+    const err = new Error(sk === 'PROFILE' ? 'Profile not found' : 'Preferences not found');
     err.status = 404;
     throw err;
   }
-  return result.rows[0];
+
+  return result.Item;
+}
+
+export async function getProfile() {
+  const item = await getSettingsItem('PROFILE');
+  return {
+    name: item.name,
+    email: item.email,
+    role: item.role,
+    avatar: item.avatar || '',
+  };
 }
 
 export async function updateProfile({ name, email, role, avatar }) {
-  const result = await pool.query(
-    `UPDATE user_profile SET name = $1, email = $2, role = $3, avatar = $4
-     WHERE id = (SELECT id FROM user_profile ORDER BY id LIMIT 1)
-     RETURNING name, email, role, avatar`,
-    [name, email, role, avatar || '']
+  const result = await getDocClient().send(
+    new UpdateCommand({
+      TableName: getTableName(),
+      Key: { pk: 'SETTINGS', sk: 'PROFILE' },
+      UpdateExpression: 'SET #name = :name, email = :email, #role = :role, avatar = :avatar',
+      ExpressionAttributeNames: { '#name': 'name', '#role': 'role' },
+      ExpressionAttributeValues: {
+        ':name': name,
+        ':email': email,
+        ':role': role,
+        ':avatar': avatar || '',
+      },
+      ReturnValues: 'ALL_NEW',
+    })
   );
-  if (result.rows.length === 0) {
-    const err = new Error('Profile not found');
-    err.status = 404;
-    throw err;
-  }
-  return result.rows[0];
+
+  const item = result.Attributes;
+  return {
+    name: item.name,
+    email: item.email,
+    role: item.role,
+    avatar: item.avatar || '',
+  };
 }
 
 export async function getPreferences() {
-  const result = await pool.query(
-    `SELECT email_notifications AS "emailNotifications",
-            push_notifications AS "pushNotifications",
-            weekly_digest AS "weeklyDigest",
-            dark_mode AS "darkMode"
-     FROM user_preferences ORDER BY id LIMIT 1`
-  );
-  if (result.rows.length === 0) {
-    const err = new Error('Preferences not found');
-    err.status = 404;
-    throw err;
-  }
-  return result.rows[0];
+  const item = await getSettingsItem('PREFERENCES');
+  return {
+    emailNotifications: item.emailNotifications,
+    pushNotifications: item.pushNotifications,
+    weeklyDigest: item.weeklyDigest,
+    darkMode: item.darkMode,
+  };
 }
 
 export async function updatePreferences(prefs) {
-  const result = await pool.query(
-    `UPDATE user_preferences SET
-       email_notifications = $1,
-       push_notifications = $2,
-       weekly_digest = $3,
-       dark_mode = $4
-     WHERE id = (SELECT id FROM user_preferences ORDER BY id LIMIT 1)
-     RETURNING email_notifications AS "emailNotifications",
-               push_notifications AS "pushNotifications",
-               weekly_digest AS "weeklyDigest",
-               dark_mode AS "darkMode"`,
-    [prefs.emailNotifications, prefs.pushNotifications, prefs.weeklyDigest, prefs.darkMode]
+  const result = await getDocClient().send(
+    new UpdateCommand({
+      TableName: getTableName(),
+      Key: { pk: 'SETTINGS', sk: 'PREFERENCES' },
+      UpdateExpression:
+        'SET emailNotifications = :en, pushNotifications = :pn, weeklyDigest = :wd, darkMode = :dm',
+      ExpressionAttributeValues: {
+        ':en': prefs.emailNotifications,
+        ':pn': prefs.pushNotifications,
+        ':wd': prefs.weeklyDigest,
+        ':dm': prefs.darkMode,
+      },
+      ReturnValues: 'ALL_NEW',
+    })
   );
-  if (result.rows.length === 0) {
-    const err = new Error('Preferences not found');
-    err.status = 404;
-    throw err;
-  }
-  return result.rows[0];
+
+  const item = result.Attributes;
+  return {
+    emailNotifications: item.emailNotifications,
+    pushNotifications: item.pushNotifications,
+    weeklyDigest: item.weeklyDigest,
+    darkMode: item.darkMode,
+  };
 }

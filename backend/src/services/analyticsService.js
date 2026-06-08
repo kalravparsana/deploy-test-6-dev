@@ -1,4 +1,5 @@
-import { pool } from '../db/pool.js';
+import { GetCommand } from '@aws-sdk/lib-dynamodb';
+import { getDocClient, getTableName } from '../shared/dynamodb.js';
 
 const VALID_PERIODS = ['7d', '30d', '90d'];
 
@@ -9,22 +10,21 @@ export async function getAnalytics(period) {
     throw err;
   }
 
-  const result = await pool.query(
-    'SELECT dataset_label, labels, data_points FROM analytics_data WHERE period = $1 ORDER BY id',
-    [period]
+  const result = await getDocClient().send(
+    new GetCommand({
+      TableName: getTableName(),
+      Key: { pk: 'ANALYTICS', sk: period },
+    })
   );
 
-  if (result.rows.length === 0) {
+  if (!result.Item) {
     const err = new Error('Analytics data not found for period');
     err.status = 404;
     throw err;
   }
 
-  const labels = result.rows[0].labels;
-  const datasets = result.rows.map((row) => ({
-    label: row.dataset_label,
-    data: row.data_points,
-  }));
-
-  return { labels, datasets };
+  return {
+    labels: result.Item.labels,
+    datasets: result.Item.datasets,
+  };
 }

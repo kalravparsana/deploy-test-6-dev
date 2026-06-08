@@ -1,23 +1,18 @@
 # deploy-test-6-dev
 
-Development integration repository for **deploy-test-6** — Release R1 (1.0.0).
+Development integration repository for **deploy-test-6** — Release R1 (1.0.1).
 
-**Execution Mode:** Local Mode (Express + PostgreSQL)
+**Execution Mode:** Cloud Mode (AWS Lambda + API Gateway + DynamoDB)
 
 ## Structure
 
 ```
 development-1/
 ├── Frontend/          # React + Vite dashboard (R1)
-├── backend/           # Express + PostgreSQL API
-├── docs/              # Phase 0–2 documentation
+├── backend/           # Lambda handlers + DynamoDB + CloudFormation
+├── docs/              # Phase 0–4 documentation
 └── tests/             # Playwright test specs
 ```
-
-## Prerequisites
-
-- Node.js 18+
-- PostgreSQL 14+
 
 ## Environment Variables
 
@@ -25,37 +20,38 @@ Copy example files and fill values locally (never commit `.env`):
 
 | Variable | Location | Purpose |
 |---|---|---|
-| `DATABASE_URL` | `backend/.env` | PostgreSQL connection string |
-| `PORT` | `backend/.env` | API server port (default 3001) |
-| `CORS_ORIGIN` | `backend/.env` | Frontend origin for CORS |
-| `VITE_API_BASE_URL` | `Frontend/.env` | API base URL for frontend |
+| `VITE_API_BASE_URL` | `Frontend/.env` | API base URL (from stack output `ApiBaseUrl`) |
 | `VITE_PORT` | `Frontend/.env` | Vite dev server port |
+| `DYNAMODB_TABLE_NAME` | `backend/.env` | DynamoDB table (from stack output) |
+| `AWS_REGION` | `backend/.env` | AWS region for seed script |
+| `CORS_ORIGIN` | CloudFormation param | Frontend origin for API CORS |
 | `BASE_URL` | test runner env | Playwright target URL |
+| `AWS_ACCESS_KEY_ID` | deploy env only | CloudFormation deploy credentials |
+| `AWS_SECRET_ACCESS_KEY` | deploy env only | CloudFormation deploy credentials |
 
-## Quick Start
+## Deploy Backend (CloudFormation)
 
-### 1. Database
-
-```bash
-createdb deploy_test_6
-```
-
-### 2. Backend
+See [docs/PHASE4_CLOUD_HOSTING.md](docs/PHASE4_CLOUD_HOSTING.md) for full instructions.
 
 ```bash
 cd backend
-cp .env.example .env
-# Edit .env with your DATABASE_URL
 npm install
-npm run setup    # migrate + seed
-npm run dev
+npm run package
+
+aws cloudformation deploy \
+  --template-file cloudformation-template.yaml \
+  --stack-name deploy-test-6-r1 \
+  --capabilities CAPABILITY_NAMED_IAM
+
+# Upload artifact, seed data, configure frontend env vars
 ```
 
-### 3. Frontend
+## Run Frontend Locally
 
 ```bash
 cd Frontend
 cp .env.example .env
+# Set VITE_API_BASE_URL to deployed API URL
 npm install
 npm run dev
 ```
@@ -68,6 +64,7 @@ See [docs/PHASE1_API_SPEC.md](docs/PHASE1_API_SPEC.md) for full contract.
 
 ## Assumptions
 
-- `launchpad-frontend/` submodule was inaccessible; Frontend built from scratch following Launchpad patterns
-- No authentication in R1 (all endpoints public)
+- `launchpad-frontend/` submodule was inaccessible; Frontend built following Launchpad patterns
+- No authentication in R1 (all endpoints public; Cognito not provisioned)
 - Single-user settings model
+- Frontend hosting via S3/CloudFront is optional and out of scope

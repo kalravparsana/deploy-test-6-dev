@@ -22,6 +22,9 @@ crash.log
 packaged.yaml
 samconfig.toml
 
+# backend build
+backend/dist/
+
 # misc
 .DS_Store
 *.log

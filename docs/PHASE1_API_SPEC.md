@@ -1,6 +1,7 @@
 # Phase 1 — API Contract
 
-**Base URL:** `http://localhost:3001/api` (configurable via `VITE_API_BASE_URL`)
+**Release:** R1 / 1.0.1  
+**Base URL:** `VITE_API_BASE_URL` (populated from CloudFormation output `ApiBaseUrl` after deploy)
 
 ## Error Format
 
@@ -15,16 +16,16 @@ Validation errors (400):
 
 ## Endpoints
 
-| Method | Path | Purpose | Auth |
-|---|---|---|---|
-| GET | `/health` | Health check | None |
-| GET | `/stats` | List dashboard stat cards | None |
-| GET | `/activities?search=` | List activities, optional search | None |
-| GET | `/analytics?period=7d\|30d\|90d` | Chart data for period | None |
-| GET | `/settings/profile` | Get user profile | None |
-| PUT | `/settings/profile` | Update user profile | None |
-| GET | `/settings/preferences` | Get notification preferences | None |
-| PUT | `/settings/preferences` | Update notification preferences | None |
+| Method | Path | Purpose | Auth | Lambda Route |
+|---|---|---|---|---|
+| GET | `/health` | Health check | None | `GET /health` |
+| GET | `/stats` | List dashboard stat cards | None | `GET /stats` |
+| GET | `/activities?search=` | List activities, optional search | None | `GET /activities` |
+| GET | `/analytics?period=7d\|30d\|90d` | Chart data for period | None | `GET /analytics` |
+| GET | `/settings/profile` | Get user profile | None | `GET /settings/profile` |
+| PUT | `/settings/profile` | Update user profile | None | `PUT /settings/profile` |
+| GET | `/settings/preferences` | Get notification preferences | None | `GET /settings/preferences` |
+| PUT | `/settings/preferences` | Update notification preferences | None | `PUT /settings/preferences` |
 
 ### GET /stats
 
@@ -37,7 +38,7 @@ Validation errors (400):
 
 ### GET /activities
 
-**Query:** `search` (optional, filters user_name and action)
+**Query:** `search` (optional, filters user and action)
 
 **Response 200:**
 ```json
@@ -81,3 +82,18 @@ Validation errors (400):
 ```
 
 **PUT Body:** Same shape as GET response.
+
+## API Gateway Mapping
+
+| Route | Integration | Authorizer |
+|---|---|---|
+| `GET /health` | ApiLambda | None |
+| `GET /stats` | ApiLambda | None |
+| `GET /activities` | ApiLambda | None |
+| `GET /analytics` | ApiLambda | None |
+| `GET /settings/profile` | ApiLambda | None |
+| `PUT /settings/profile` | ApiLambda | None |
+| `GET /settings/preferences` | ApiLambda | None |
+| `PUT /settings/preferences` | ApiLambda | None |
+
+**CORS:** All routes return `Access-Control-Allow-Origin` from `CORS_ORIGIN` env var. `OPTIONS` handled by API Gateway auto-CORS.

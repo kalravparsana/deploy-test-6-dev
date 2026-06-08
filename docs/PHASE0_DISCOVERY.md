@@ -1,9 +1,11 @@
 # Phase 0 — Discovery & Inventory
 
-**Execution Mode:** Local Mode  
-**Reason:** Environment variables were not provided (`(none provided — infer required variables...)`). Per execution mode rules, Local Mode is active when env vars are absent.
+**Detected Execution Mode:** Cloud Mode  
+**Reason:** Infrastructure-as-Code tool is configured as `AWS CloudFormation` (non-empty). Backend targets AWS Lambda + API Gateway + DynamoDB.
 
-**Assumption:** `launchpad-frontend/` submodule (YorkIE-Launchpad/deploy-test-6) is inaccessible (private repo). Frontend R1 was built from scratch in `development-1/Frontend/` following Launchpad dashboard patterns.
+**Release:** R1 / 1.0.1
+
+**Assumption:** `launchpad-frontend/` submodule (YorkIE-Launchpad/deploy-test-6) is inaccessible (private repo). Frontend R1 in `development-1/Frontend/` follows Launchpad dashboard patterns.
 
 ---
 
@@ -29,11 +31,13 @@
 
 ---
 
-## Relationships
+## Relationships (DynamoDB)
 
-- Stats, Activities, Analytics are independent entities (no foreign keys)
-- Profile and Preferences are singleton records (one user assumed for R1)
-- Analytics data keyed by `period` with multiple datasets per period
+- Single-table design with `pk` / `sk` keys
+- Stats: `pk=STAT`, `sk=STAT#{id}`
+- Activities: `pk=ACTIVITY`, `sk=ACTIVITY#{id}`
+- Analytics: `pk=ANALYTICS`, `sk={period}` (7d, 30d, 90d) — denormalized chart payload
+- Settings: `pk=SETTINGS`, `sk=PROFILE` and `pk=SETTINGS`, `sk=PREFERENCES`
 
 ## Derived/Computed Values
 
@@ -43,6 +47,7 @@
 
 ## Assumptions
 
-- No authentication surface in R1 — all endpoints are public
+- No authentication surface in R1 — Cognito not provisioned; all API routes are public
 - Single-user settings model (no user ID in requests)
 - Frontend falls back to mock data when API is unavailable
+- Frontend hosting via S3 + CloudFront is optional and out of scope for this release

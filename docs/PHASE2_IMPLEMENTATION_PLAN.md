@@ -1,36 +1,56 @@
 # Phase 2 — Implementation Plan
 
-## Database (PostgreSQL)
+**Release:** R1 / 1.0.1  
+**Mode:** Cloud Mode (Lambda + DynamoDB + API Gateway)
 
-- [x] `stats` — id, label, value, change, trend
-- [x] `activities` — id, user_name, action, timestamp, status
-- [x] `analytics_data` — period, dataset_label, labels (JSONB), data_points (JSONB)
-- [x] `user_profile` — name, email, role, avatar (singleton)
-- [x] `user_preferences` — 4 boolean toggles (singleton)
-- [x] Migration script: `backend/src/db/migrate.js`
-- [x] Seed script ports all mock data: `backend/src/db/seed.js`
+## Database (DynamoDB)
+
+- [x] Single table `AppTable` with `pk` (partition) and `sk` (sort)
+- [x] Stats items: `pk=STAT`, `sk=STAT#{id}` — id, label, value, change, trend
+- [x] Activity items: `pk=ACTIVITY`, `sk=ACTIVITY#{id}` — id, user, action, timestamp, status
+- [x] Analytics items: `pk=ANALYTICS`, `sk={period}` — labels, datasets (denormalized)
+- [x] Profile item: `pk=SETTINGS`, `sk=PROFILE` — name, email, role, avatar
+- [x] Preferences item: `pk=SETTINGS`, `sk=PREFERENCES` — four boolean toggles
+- [x] Access pattern: Query `pk=STAT` → Dashboard stat cards
+- [x] Access pattern: Query `pk=ACTIVITY` + FilterExpression → Dashboard activity search
+- [x] Access pattern: GetItem `pk=ANALYTICS, sk={period}` → Analytics chart tabs
+- [x] Access pattern: GetItem/UpdateItem `pk=SETTINGS` → Settings profile & preferences
+- [x] Seed script: `backend/scripts/seed.js` ports mock data faithfully
 
 ## API Layer
 
-- [x] Express app with CORS, JSON parsing, centralized error handler
-- [x] Routes: stats, activities, analytics, settings
-- [x] Zod validation on settings PUT endpoints
-- [x] Parameterized SQL queries via pg pool
+- [x] Single Lambda handler with path/method routing
+- [x] Shared: config loader, DynamoDB DocumentClient, CORS, error handler, Zod validation
+- [x] Services: stats, activities, analytics, settings
+- [x] Structured logging via `console.log` JSON
+- [x] No Cognito (no auth surface in UI)
 
 ## Frontend Wire-up
 
-- [x] Data access layer: `Frontend/src/api/client.js`
+- [x] Data access layer: `Frontend/src/api/client.js` (unchanged contract)
 - [x] Pages call API with mock fallback on failure
-- [x] Env vars: `VITE_API_BASE_URL`, `VITE_PORT`, `VITE_API_PROXY`
+- [x] Env vars: `VITE_API_BASE_URL` (from stack output `ApiBaseUrl`)
+- [x] Optional local proxy via `VITE_API_PROXY` for dev against deployed API
+
+## Infrastructure (Phase 4)
+
+- [x] DynamoDB table
+- [x] Lambda function + IAM role
+- [x] API Gateway HTTP API + routes + CORS
+- [x] S3 bucket for Lambda deployment artifacts
+- [x] CloudWatch log group
+- [ ] Cognito — skipped (no auth in R1)
+- [ ] S3 + CloudFront frontend hosting — optional, out of scope
 
 ## Verification Checklist
 
-- [ ] GET /api/stats → Dashboard stat cards
-- [ ] GET /api/activities → Dashboard activity list
-- [ ] GET /api/activities?search=chen → Filtered activities
-- [ ] GET /api/analytics?period=7d → Analytics chart (7 Days tab)
-- [ ] GET /api/analytics?period=30d → Analytics chart (30 Days tab)
-- [ ] GET /api/settings/profile → Settings profile form
-- [ ] PUT /api/settings/profile → Save profile changes
-- [ ] GET /api/settings/preferences → Settings toggles
-- [ ] PUT /api/settings/preferences → Save toggle changes
+- [ ] GET /health → 200 ok
+- [ ] GET /stats → Dashboard stat cards
+- [ ] GET /activities → Dashboard activity list
+- [ ] GET /activities?search=chen → Filtered activities
+- [ ] GET /analytics?period=7d → Analytics chart (7 Days tab)
+- [ ] GET /analytics?period=30d → Analytics chart (30 Days tab)
+- [ ] GET /settings/profile → Settings profile form
+- [ ] PUT /settings/profile → Save profile changes
+- [ ] GET /settings/preferences → Settings toggles
+- [ ] PUT /settings/preferences → Save toggle changes
